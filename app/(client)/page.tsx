@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectItem } from "@/components/ui/select";
 
 export default function ElectricalQuoteApp() {
   const [projects, setProjects] = useState<{ name: string; jobs: any[] }[]>([]);
@@ -107,19 +108,13 @@ export default function ElectricalQuoteApp() {
             {questions.map((q, index) => (
               <div key={index} className="mt-2">
                 <Label>{q.question}</Label>
-                <select
-                  className="border p-2 w-full"
-                  onChange={(e) => {
-                    const newAnswers = [...answers];
-                    newAnswers[index] = { question: q.question, answer: e.target.value };
-                    setAnswers(newAnswers);
-                  }}
-                >
-                  <option value="">Select an option</option>
-                  {q.options.map((option, i) => (
-                    <option key={i} value={option}>{option}</option>
-                  ))}
-                </select>
+                <Select onValueChange={(value) => {
+                  const newAnswers = [...answers];
+                  newAnswers[index] = { question: q.question, answer: value };
+                  setAnswers(newAnswers);
+                }}>
+                  {q.options.map((option, i) => <SelectItem key={i} value={option}>{option}</SelectItem>)}
+                </Select>
               </div>
             ))}
             <Button onClick={getEstimates} className="mt-2" disabled={loadingEstimate}>
