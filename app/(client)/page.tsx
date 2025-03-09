@@ -64,7 +64,7 @@ export default function ElectricalQuoteApp() {
       if (response.ok && data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
         const updatedQuestions = data.questions.map((q: { question: string; options: string[] }) => ({
           ...q,
-          options: [...new Set([...q.options, "Other"])], // Ensure "Other" is always an option
+          options: [...new Set([...q.options, "Other"])] // Ensure "Other" is always an option
         }));
         setQuestions(updatedQuestions);
       } else {
