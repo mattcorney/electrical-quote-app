@@ -44,20 +44,17 @@ export async function POST(req: Request) {
 
       const questionsText = questionsResponse.choices[0]?.message?.content || "{}";
 
-      let parsedQuestions;
       try {
-        parsedQuestions = JSON.parse(questionsText);
+        const parsedQuestions = JSON.parse(questionsText);
+        if (!parsedQuestions?.questions || !Array.isArray(parsedQuestions.questions) || parsedQuestions.questions.length === 0) {
+          console.error("⚠️ No clarifying questions received. AI response:", questionsText);
+          return NextResponse.json({ error: "AI did not return any valid questions." }, { status: 500 });
+        }
+        return NextResponse.json(parsedQuestions);
       } catch (error) {
         console.error("❌ AI JSON Parsing Error (Questions):", error);
         return NextResponse.json({ error: "AI returned invalid JSON for questions." }, { status: 500 });
       }
-
-      if (!parsedQuestions?.questions || !Array.isArray(parsedQuestions.questions) || parsedQuestions.questions.length === 0) {
-        console.error("⚠️ No clarifying questions received. AI response:", questionsText);
-        return NextResponse.json({ error: "AI did not return any valid questions." }, { status: 500 });
-      }
-
-      return NextResponse.json(parsedQuestions);
     }
 
     // If previous answers exist, generate job estimate
@@ -65,7 +62,7 @@ export async function POST(req: Request) {
       You are an expert electrical estimator in the UK.
       The user provided this job description: "${jobDescription}".
       They answered these clarifying questions:
-      ${previousAnswers.map(a => `${a.question}: ${a.answer}`).join("\n")}
+      ${previousAnswers.map((a: { question: string; answer: string }) => `${a.question}: ${a.answer}`).join("\n")}
 
       Now, generate a **detailed breakdown** of the work, including:
       - Each **specific** job task required.
@@ -91,15 +88,18 @@ export async function POST(req: Request) {
 
     console.log("🔍 Full AI Response (Jobs):", JSON.stringify(jobsResponse, null, 2));
 
-    const jobsText = jobsResponse.choices[0]?.message?.content || "{}";
+    let jobsText = jobsResponse.choices[0]?.message?.content || "{}";
     console.log("🔍 Extracted AI Response (Jobs Text):", jobsText);
 
     try {
-      // First parse the response content
-      const firstParse = JSON.parse(jobsText);
-      
-      // If AI nested JSON inside a string, parse it again
-      const parsedJobs = typeof firstParse === "string" ? JSON.parse(firstParse) : firstParse;
+      // Remove extra text if AI adds anything outside JSON
+      jobsText = jobsText.trim();
+      if (!jobsText.startsWith("{")) {
+        console.error("⚠️ AI Response is not JSON:", jobsText);
+        return NextResponse.json({ error: "AI returned invalid JSON format for jobs." }, { status: 500 });
+      }
+
+      let parsedJobs = JSON.parse(jobsText);
 
       console.log("✅ Parsed AI Jobs:", JSON.stringify(parsedJobs, null, 2));
 
