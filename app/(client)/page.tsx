@@ -9,15 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { motion } from "framer-motion";
 
-
-// AI "thinking" animation (bouncing dots)
 const TypingDots = () => (
-  <motion.div className="flex space-x-2 items-center">
-    <span className="text-gray-600">AI is thinking</span>
+  <motion.div className="flex space-x-2 items-center text-white">
+    <span className="text-white">AI is thinking</span>
     {[0, 1, 2].map((_, i) => (
       <motion.span
         key={i}
-        className="w-2 h-2 bg-gray-600 rounded-full"
+        className="w-2 h-2 bg-white rounded-full"
         animate={{ opacity: [0.3, 1, 0.3] }}
         transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: i * 0.2 }}
       />
@@ -27,11 +25,16 @@ const TypingDots = () => (
 
 export default function ElectricalQuoteApp() {
   const [hourlyRate, setHourlyRate] = useState<number>(50);
-  const [jobDescription, setJobDescription] = useState(""); 
+  const [jobDescription, setJobDescription] = useState("");
   const [questions, setQuestions] = useState<{ question: string; options: string[] }[]>([]);
   const [answers, setAnswers] = useState<{ question: string; answer: string }[]>([]);
   const [customAnswers, setCustomAnswers] = useState<{ [key: string]: string }>({});
-  const [jobs, setJobs] = useState<{ job: string; time: number; materials: { name: string; price: number }[] }[]>([]);
+  const [jobs, setJobs] = useState<{
+    job: string;
+    confidence: string;
+    timeRange: { min: number; max: number };
+    materials: { name: string; priceRange: { min: number; max: number } }[];
+  }[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [loadingEstimate, setLoadingEstimate] = useState(false);
   const [error, setError] = useState("");
@@ -64,7 +67,7 @@ export default function ElectricalQuoteApp() {
       if (response.ok && data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
         const updatedQuestions = data.questions.map((q: { question: string; options: string[] }) => ({
           ...q,
-          options: [...new Set([...q.options, "Other"])] // Ensure "Other" is always an option
+          options: [...new Set([...q.options, "Other"])]
         }));
         setQuestions(updatedQuestions);
       } else {
@@ -108,7 +111,7 @@ export default function ElectricalQuoteApp() {
       console.log("✅ AI Estimate Received:", JSON.stringify(data, null, 2));
 
       if (response.ok && Array.isArray(data.jobs) && data.jobs.length > 0) {
-        setJobs([...data.jobs]);
+        setJobs(data.jobs);
       } else {
         setError("No valid jobs received. Please try again.");
       }
@@ -123,6 +126,8 @@ export default function ElectricalQuoteApp() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Electrical Quote Generator</h1>
+
+      {/* Hourly Rate */}
       <Card>
         <CardContent className="p-4">
           <Label htmlFor="hourlyRate">Hourly Rate (£)</Label>
@@ -130,16 +135,22 @@ export default function ElectricalQuoteApp() {
         </CardContent>
       </Card>
 
+      {/* Job Description */}
       <Card className="mt-4">
         <CardContent className="p-4">
           <Label htmlFor="jobDescription">Enter Job Description</Label>
           <Textarea id="jobDescription" value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} />
-          <Button onClick={getQuestions} className="mt-2" disabled={loadingQuestions || loadingEstimate}>
-            {loadingQuestions ? <TypingDots /> : "Get Questions"}
-          </Button>
+          <Button
+          onClick={getQuestions}
+          className="mt-4 bg-blue-600 text-white font-semibold px-4 py-2 rounded hover:bg-blue-700 transition"
+          disabled={loadingQuestions || loadingEstimate}
+        >
+          {loadingQuestions ? <TypingDots /> : "Get Questions"}
+        </Button>
         </CardContent>
       </Card>
 
+      {/* Clarifying Questions */}
       {questions.length > 0 && (
         <Card className="mt-4">
           <CardContent className="p-4">
@@ -181,93 +192,131 @@ export default function ElectricalQuoteApp() {
                 )}
               </div>
             ))}
-            <Button onClick={getEstimates} className="mt-2" disabled={loadingEstimate}>
-              {loadingEstimate ? <TypingDots /> : "Submit Answers"}
-            </Button>
+            <Button
+            onClick={getEstimates}
+            className="mt-4 bg-green-600 text-white font-semibold px-4 py-2 rounded hover:bg-green-700 transition"
+            disabled={loadingEstimate}
+          >
+            {loadingEstimate ? <TypingDots /> : "Submit Answers"}
+          </Button>
           </CardContent>
         </Card>
       )}
 
-{jobs.length > 0 && (
-  <Card className="mt-4">
-    <CardContent className="p-4">
-      <h3 className="text-lg font-semibold mb-4">Quote Breakdown</h3>
-      <table className="w-full border-collapse border border-gray-300">
-        <tbody>
-          {jobs.map((job, index) => {
-            const labourCost = job.time * hourlyRate;
-            const materialCost = job.materials.reduce((sum, m) => sum + m.price, 0);
-            const totalCost = labourCost + materialCost;
+      {/* Jobs Breakdown */}
+      {jobs.length > 0 && (
+        <Card className="mt-4">
+          <CardContent className="p-4">
+            <h3 className="text-lg font-semibold mb-4">Quote Breakdown</h3>
+            <table className="w-full border-collapse border border-gray-300">
+              <tbody>
+                {jobs.map((job, index) => {
+                  const labourCostMin = (job.timeRange?.min || 0) * hourlyRate;
+                  const labourCostMax = (job.timeRange?.max || 0) * hourlyRate;
+                  const materialCostMin = job.materials.reduce((sum, m) => sum + (m.priceRange?.min || 0), 0);
+                  const materialCostMax = job.materials.reduce((sum, m) => sum + (m.priceRange?.max || 0), 0);
+                  const totalCostMin = labourCostMin + materialCostMin;
+                  const totalCostMax = labourCostMax + materialCostMax;
 
-            return (
-              <React.Fragment key={index}>
-                {/* Spacing between Jobs */}
-                {index !== 0 && <tr><td colSpan={3} className="p-2"></td></tr>}
+                  return (
+                    <React.Fragment key={index}>
+                      {index !== 0 && <tr><td colSpan={4} className="p-2"></td></tr>}
 
-                {/* Job Title */}
-                <tr className="bg-gray-100">
-                  <td colSpan={3} className="border p-2 font-bold text-lg">{job.job}</td>
-                </tr>
-                
-                {/* Labour Row */}
-                <tr>
-                  <td className="border p-2"><strong>Labour:</strong></td>
-                  <td className="border p-2">{job.time} hours</td>
-                  <td className="border p-2">£{labourCost.toFixed(2)}</td>
-                </tr>
+                      {/* Job Title and Confidence */}
+                      <tr className="bg-gray-100">
+                        <td colSpan={4} className="border p-2 font-bold text-lg">
+                          {job.job || "Untitled Job"}{" "}
+                          {job.confidence === "High" && <span className="text-green-600 ml-2 text-sm">✅ High Confidence</span>}
+                          {job.confidence === "Medium" && <span className="text-yellow-600 ml-2 text-sm">⚠️ Medium Confidence</span>}
+                          {job.confidence === "Low" && <span className="text-red-600 ml-2 text-sm">❗ Low Confidence</span>}
+                        </td>
+                      </tr>
 
-                {/* Materials Row */}
-                <tr>
-                  <td className="border p-2"><strong>Materials:</strong></td>
-                  <td className="border p-2">
-                    {job.materials.length > 0 ? (
-                      job.materials.map((m, i) => <div key={i}>{m.name} (£{m.price})</div>)
-                    ) : (
-                      "None"
-                    )}
-                  </td>
-                  <td className="border p-2">£{materialCost.toFixed(2)}</td>
-                </tr>
+                      {/* Labour Row */}
+                      <tr>
+                        <td className="border p-2 font-semibold">Labour (hours)</td>
+                        <td className="border p-2" colSpan={2}>
+                          {job.timeRange?.min ?? 0} – {job.timeRange?.max ?? 0} hrs
+                          {job.confidence === "High" && <span className="text-green-600 ml-2 text-sm">✅</span>}
+                          {job.confidence === "Medium" && <span className="text-yellow-600 ml-2 text-sm">⚠️</span>}
+                          {job.confidence === "Low" && <span className="text-red-600 ml-2 text-sm">❗</span>}
+                        </td>
+                        <td className="border p-2">
+                          £{labourCostMin.toFixed(2)} – £{labourCostMax.toFixed(2)}
+                        </td>
+                      </tr>
 
-                {/* Total Cost for Job */}
-                <tr className="bg-gray-200">
-                  <td colSpan={2} className="border p-2 font-bold">Total for {job.job}</td>
-                  <td className="border p-2 font-bold">£{totalCost.toFixed(2)}</td>
-                </tr>
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                      {/* Materials Row */}
+                      <tr>
+                        <td className="border p-2 font-semibold">Materials</td>
+                        <td className="border p-2" colSpan={2}>
+                          {job.materials.length > 0 ? (
+                            job.materials.map((m, i) => (
+                              <div key={i}>
+                                {m.name} (£{m.priceRange?.min.toFixed(2)}–£{m.priceRange?.max.toFixed(2)})
+                              </div>
+                            ))
+                          ) : (
+                            "None"
+                          )}
+                        </td>
+                        <td className="border p-2">
+                          £{materialCostMin.toFixed(2)} – £{materialCostMax.toFixed(2)}
+                        </td>
+                      </tr>
 
-      {/* Grand Total Section */}
-      <table className="w-full border-collapse border border-gray-400 mt-4">
-        <tbody>
-          <tr className="bg-gray-300">
-            <td colSpan={2} className="border p-2 text-lg font-bold">Total Labour Cost</td>
-            <td className="border p-2 text-lg font-bold">
-              £{jobs.reduce((sum, job) => sum + (job.time * hourlyRate), 0).toFixed(2)}
-            </td>
-          </tr>
-          <tr className="bg-gray-300">
-            <td colSpan={2} className="border p-2 text-lg font-bold">Total Materials Cost</td>
-            <td className="border p-2 text-lg font-bold">
-              £{jobs.reduce((sum, job) => sum + job.materials.reduce((mSum, m) => mSum + m.price, 0), 0).toFixed(2)}
-            </td>
-          </tr>
-          <tr className="bg-gray-400">
-            <td colSpan={2} className="border p-2 text-lg font-bold">Grand Total</td>
-            <td className="border p-2 text-lg font-bold">
-              £{jobs.reduce((sum, job) => sum + (job.time * hourlyRate + job.materials.reduce((mSum, m) => mSum + m.price, 0)), 0).toFixed(2)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </CardContent>
-  </Card>
-)}
+                      {/* Total */}
+                      <tr className="bg-gray-200">
+                        <td colSpan={3} className="border p-2 font-bold">Total for {job.job}</td>
+                        <td className="border p-2 font-bold">
+                          £{totalCostMin.toFixed(2)} – £{totalCostMax.toFixed(2)}
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
 
-
+            {/* Grand Total Summary */}
+            <Card className="mt-6">
+              <CardContent className="p-6 rounded-lg shadow-md">
+                <h3 className="text-2xl font-bold mb-4 text-left">Grand Total Summary</h3>
+                <table className="w-full border-collapse border border-gray-300">
+                  <tbody>
+                    <tr>
+                      <td className="border p-2 font-semibold">Labour Time (hours)</td>
+                      <td className="border p-2 text-left">
+                        {jobs.reduce((sum, job) => sum + (job.timeRange?.min || 0), 0).toFixed(2)} – {jobs.reduce((sum, job) => sum + (job.timeRange?.max || 0), 0).toFixed(2)} hrs
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2 font-semibold">Materials Cost (£)</td>
+                      <td className="border p-2 text-left">
+                        £{jobs.reduce((sum, job) => sum + job.materials.reduce((s, m) => s + (m.priceRange?.min || 0), 0), 0).toFixed(2)} – £{jobs.reduce((sum, job) => sum + job.materials.reduce((s, m) => s + (m.priceRange?.max || 0), 0), 0).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="bg-gray-200">
+                      <td className="border p-2 font-bold text-lg">Grand Total (£)</td>
+                      <td className="border p-2 font-bold text-lg text-green-700 text-left">
+                        £{jobs.reduce((sum, job) => {
+                          return sum + 
+                            (job.timeRange?.min || 0) * hourlyRate + 
+                            job.materials.reduce((s, m) => s + (m.priceRange?.min || 0), 0);
+                        }, 0).toFixed(2)} – £{jobs.reduce((sum, job) => {
+                          return sum + 
+                            (job.timeRange?.max || 0) * hourlyRate + 
+                            job.materials.reduce((s, m) => s + (m.priceRange?.max || 0), 0);
+                        }, 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
