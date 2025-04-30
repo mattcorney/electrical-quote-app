@@ -1,0 +1,21 @@
+.highlight-flash {
+    animation: flashBackground 1s ease-in-out;
+  }
+  
+  @keyframes flashBackground {
+    0% { background-color: #fef9c3; } /* light yellow flash */
+    100% { background-color: transparent; }
+  }
+
+  .flash {
+    animation: flash-bg 1.2s ease-in-out;
+  }
+  
+  @keyframes flash-bg {
+    from {
+      background-color: #fef9c3; /* light yellow */
+    }
+    to {
+      background-color: transparent;
+    }
+  }

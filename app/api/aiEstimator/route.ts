@@ -27,13 +27,8 @@ Before providing an estimate, you must ask clarifying questions until you have e
 
 Rules:
 - Ask as many questions as you need until you have enough information to produce an accurate and realistic quote.
-- Prioritise asking about:
-  - Approximate cable run length (if relevant)
-  - Installation method (chased into walls, surface trunking, conduit, etc.)
-  - Type of property (domestic, commercial, industrial)
-  - Whether the work is a new installation, replacement, or upgrade
-  - Whether holes or chases are required in walls or ceilings
-  - Consumer unit or protection upgrades (if applicable)
+- If the job description has mentioned the customer is supplying any materials, do not allow for them in your estimate.
+- Do not ask questions that are irrelevant to the job or that you already know the answer to.
 - Assume:
   - The electrician already has all standard tools and test equipment.
   - Standard UK regulations apply (bonding, earthing, RCD protection, etc.)
@@ -99,6 +94,8 @@ Question format:
           - Fixings (e.g. clips, saddles, glands)
           - Price range for each material in £: { "min": X, "max": Y }
         - ❗ Do not include tools – assume the electrician has all tools/test equipment.
+        - After listing the tasks, provide a short, polished summary of the overall job (1–2 sentences) using plain language suitable for a customer.
+        - Return it as a "summary" field alongside the "jobs" array. Don't mention prices or time in this summary. This is for the customer to read and from the buisness. Make the summary on what the electrician will do rather than the outcome.
 
       Only return strict valid JSON in this format:
       {
@@ -113,6 +110,8 @@ Question format:
           }
         ]
       }
+
+      
     `;
 
     console.log("🔹 Requesting AI for job breakdown...");
@@ -175,7 +174,10 @@ Question format:
         };
       });
 
-      return NextResponse.json({ jobs: updatedJobs });
+      return NextResponse.json({
+        jobs: updatedJobs,
+        summary: parsedJobs.summary || ""
+      });
     } catch (error) {
       console.error("❌ AI JSON Parsing Error (Jobs):", error);
       return NextResponse.json({ error: "AI returned invalid JSON for jobs." }, { status: 500 });

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { motion } from "framer-motion";
+import "./page.css"; // Create page.css next to your page.tsx
+
 
 const TypingDots = () => (
   <motion.div className="flex space-x-2 items-center text-white">
@@ -24,6 +26,8 @@ const TypingDots = () => (
 );
 
 export default function ElectricalQuoteApp() {
+  const questionsRef = useRef<HTMLDivElement | null>(null);
+  const quoteRef = useRef<HTMLDivElement | null>(null);
   const [hourlyRate, setHourlyRate] = useState<number>(50);
   const [jobDescription, setJobDescription] = useState("");
   const [questions, setQuestions] = useState<{ question: string; options: string[] }[]>([]);
@@ -38,6 +42,18 @@ export default function ElectricalQuoteApp() {
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [loadingEstimate, setLoadingEstimate] = useState(false);
   const [error, setError] = useState("");
+  const scrollToQuestions = () => {
+    setTimeout(() => {
+      questionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }
+  const [jobSummary, setJobSummary] = useState<string>("");
+  
+  const scrollToQuote = () => {
+    setTimeout(() => {
+      quoteRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
 
   useEffect(() => {
     console.log("✅ Updated Questions State:", questions);
@@ -70,6 +86,7 @@ export default function ElectricalQuoteApp() {
           options: [...new Set([...q.options, "Other"])]
         }));
         setQuestions(updatedQuestions);
+        scrollToQuestions();
       } else {
         setError("No questions generated. Try again.");
       }
@@ -112,9 +129,12 @@ export default function ElectricalQuoteApp() {
 
       if (response.ok && Array.isArray(data.jobs) && data.jobs.length > 0) {
         setJobs(data.jobs);
+        setJobSummary(data.summary || "");
+        scrollToQuote();
       } else {
         setError("No valid jobs received. Please try again.");
       }
+      
     } catch (error) {
       console.error("Error getting AI estimate:", error);
       setError("AI estimation failed. Please try again.");
@@ -150,10 +170,11 @@ export default function ElectricalQuoteApp() {
         </CardContent>
       </Card>
 
-      {/* Clarifying Questions */}
-      {questions.length > 0 && (
-        <Card className="mt-4">
-          <CardContent className="p-4">
+    {/* Clarifying Questions */}
+    {questions.length > 0 && (
+      <Card className="mt-4 flash">
+      <div ref={questionsRef}>
+        <CardContent className="p-4">
             <h3 className="text-lg font-semibold">Clarifying Questions</h3>
             {questions.map((q, index) => (
               <div key={index} className="mt-2">
@@ -200,14 +221,19 @@ export default function ElectricalQuoteApp() {
             {loadingEstimate ? <TypingDots /> : "Submit Answers"}
           </Button>
           </CardContent>
+          </div>
         </Card>
       )}
 
-      {/* Jobs Breakdown */}
-      {jobs.length > 0 && (
-        <Card className="mt-4">
-          <CardContent className="p-4">
-            <h3 className="text-lg font-semibold mb-4">Quote Breakdown</h3>
+    {/* Jobs Breakdown */}
+    {jobs.length > 0 && (
+      <Card className="mt-4 flash">
+  <div ref={quoteRef}>
+    <CardContent className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Quote Breakdown</h3>
+          {jobSummary && (
+  <p className="text-gray-700 italic mb-4">{jobSummary}</p>
+)}
             <table className="w-full border-collapse border border-gray-300">
               <tbody>
                 {jobs.map((job, index) => {
@@ -315,6 +341,7 @@ export default function ElectricalQuoteApp() {
               </CardContent>
             </Card>
           </CardContent>
+          </div>
         </Card>
       )}
     </div>
